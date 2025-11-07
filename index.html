@@ -267,6 +267,13 @@
 
             const handleChoice = (choice) => {
                 playClickSound();
+                const newChoice = { 
+                    scene: currentScene, 
+                    choice: choice.text,
+                    spiritual: choice.spiritual,
+                    sceneTitle: scene.title
+                };
+                setChoices([...choices, newChoice]);
                 const newHealth = Math.max(0, Math.min(100, spiritualHealth + choice.spiritual));
                 setSpiritualHealth(newHealth);
                 
@@ -279,6 +286,49 @@
                     }
                     window.scrollTo(0, 0);
                 }, 300);
+            };
+
+            const getScoreAnalysis = () => {
+                const goodChoices = choices.filter(c => c.spiritual > 0);
+                const badChoices = choices.filter(c => c.spiritual < 0);
+                
+                let analysis = "";
+                
+                if (spiritualHealth >= 80) {
+                    analysis = `🌟 탁월한 신앙생활! 당신은 ${goodChoices.length}번의 선한 선택을 했습니다. `;
+                    if (goodChoices.length >= 3) {
+                        analysis += "아침 기도, 예배 집중, 성도의 교제 등 영적으로 성숙한 모습을 보여주셨습니다.";
+                    }
+                } else if (spiritualHealth >= 60) {
+                    analysis = `✝️ 건강한 신앙! ${goodChoices.length}번의 좋은 선택과 ${badChoices.length}번의 아쉬운 선택이 있었습니다. `;
+                    if (badChoices.length > 0) {
+                        analysis += "작은 유혹들이 있었지만 결국 예배를 지켜냈습니다.";
+                    }
+                } else if (spiritualHealth >= 40) {
+                    analysis = `⚖️ 보통의 신앙. ${badChoices.length}번의 유혹에 넘어갔습니다. `;
+                    if (badChoices.some(c => c.sceneTitle?.includes("핸드폰"))) {
+                        analysis += "특히 핸드폰 유혹이 큰 걸림돌이었습니다.";
+                    } else if (badChoices.some(c => c.sceneTitle?.includes("친구"))) {
+                        analysis += "친구들과의 약속이 예배보다 우선순위가 되었습니다.";
+                    }
+                } else if (spiritualHealth >= 20) {
+                    analysis = `⚠️ 연약한 신앙. ${badChoices.length}번의 잘못된 선택으로 영적으로 힘든 상태입니다. `;
+                    if (badChoices.some(c => c.choice.includes("한강"))) {
+                        analysis += "세상의 즐거움을 예배보다 선택했고, ";
+                    }
+                    if (badChoices.some(c => c.choice.includes("온라인"))) {
+                        analysis += "형식적인 예배로 타협했습니다. ";
+                    }
+                    analysis += "다음 주일에는 더 나은 선택을 하시길 바랍니다.";
+                } else {
+                    analysis = `🚨 위험한 상태! 대부분의 선택(${badChoices.length}번)이 세상을 향했습니다. `;
+                    if (badChoices.some(c => c.choice.includes("다음주"))) {
+                        analysis += "'다음주에...'라는 생각이 신앙을 무너뜨렸습니다. ";
+                    }
+                    analysis += "회개하고 하나님께 돌아와야 할 때입니다.";
+                }
+                
+                return analysis;
             };
 
             const restartGame = () => {
@@ -432,6 +482,13 @@
                                                     <p className={`text-2xl font-bold ${getEndingMessage().color}`}>
                                                         {spiritualHealth}점 - {getEndingMessage().text}
                                                     </p>
+                                                    
+                                                    <div className="mt-4 bg-white/50 rounded-lg p-4">
+                                                        <p className="text-sm font-bold text-gray-800 mb-2">📋 점수 분석</p>
+                                                        <p className="text-sm text-gray-700 leading-relaxed">
+                                                            {getScoreAnalysis()}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
