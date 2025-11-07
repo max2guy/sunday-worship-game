@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주일 성수 - 영적 전쟁</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        // Lucide Icons 간단 구현
+        const Icon = ({ name, className = "", strokeWidth = 2 }) => {
+            const icons = {
+                Trophy: "M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 21h16M6 21v-5M18 21v-5M12 3v18M8 3h8M8 6h8",
+                Volume2: "M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07",
+                VolumeX: "M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6",
+                Church: "M10 3v3M14 3v3M10 6h4M3 21h18M6 21V11M18 21V11M12 21V9M12 3L3 11h18L12 3z",
+                Sun: "M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z",
+                Moon: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z",
+                Smartphone: "M5 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm5 14h.01",
+                Coffee: "M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z",
+                Book: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z",
+                Users: "M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M8.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm7.5 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2 10v-2a4 4 0 0 0-3-3.87",
+                Tv: "M20 7h-9M10 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM8 3l4 4m0 0l4-4",
+                MessageCircle: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+                Home: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z",
+                Play: "M5 3l14 9-14 9V3z",
+                Award: "M12 15a7 7 0 1 0 0-14 7 7 0 0 0 0 14zm-3 6l3-3 3 3m-3-3v4"
+            };
+            
+            return (
+                <svg className={className} fill="none" stroke="currentColor" strokeWidth={strokeWidth} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d={icons[name] || ""} />
+                </svg>
+            );
+        };
+
+        const SundayWorshipGame = () => {
+            const [gameStarted, setGameStarted] = useState(false);
+            const [playerName, setPlayerName] = useState('');
+            const [currentScene, setCurrentScene] = useState('intro');
+            const [spiritualHealth, setSpiritualHealth] = useState(50);
+            const [choices, setChoices] = useState([]);
+            const [isMuted, setIsMuted] = useState(false);
+            const [showHealth, setShowHealth] = useState(false);
+            const [showLeaderboard, setShowLeaderboard] = useState(false);
+            const [leaderboard, setLeaderboard] = useState([]);
+            const audioContextRef = useRef(null);
+            const oscillatorsRef = useRef([]);
+
+            useEffect(() => {
+                loadLeaderboard();
+            }, []);
+
+            const loadLeaderboard = () => {
+                try {
+                    const saved = localStorage.getItem('sunday_game_leaderboard');
+                    if (saved) {
+                        setLeaderboard(JSON.parse(saved));
+                    }
+                } catch (e) {
+                    console.log('No leaderboard found');
+                }
+            };
+
+            const saveToLeaderboard = (score) => {
+                try {
+                    const newEntry = {
+                        name: playerName || '익명',
+                        score: score,
+                        date: new Date().toLocaleDateString('ko-KR')
+                    };
+
+                    const updatedLeaderboard = [...leaderboard, newEntry]
+                        .sort((a, b) => b.score - a.score)
+                        .slice(0, 10);
+
+                    localStorage.setItem('sunday_game_leaderboard', JSON.stringify(updatedLeaderboard));
+                    setLeaderboard(updatedLeaderboard);
+                } catch (e) {
+                    console.log('Failed to save score:', e);
+                }
+            };
+
+            const startBackgroundMusic = () => {
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (!audioContextRef.current) {
+                        audioContextRef.current = new AudioContext();
+                    }
+
+                    const chords = [
+                        [261.63, 329.63, 392.00],
+                        [220.00, 261.63, 329.63],
+                        [174.61, 220.00, 261.63],
+                        [196.00, 246.94, 293.66]
+                    ];
+
+                    let chordIndex = 0;
+
+                    const playChord = () => {
+                        if (!audioContextRef.current || isMuted) return;
+
+                        oscillatorsRef.current.forEach(osc => {
+                            try { osc.stop(); } catch(e) {}
+                        });
+                        oscillatorsRef.current = [];
+
+                        if (audioContextRef.current.state === 'suspended') {
+                            audioContextRef.current.resume();
+                        }
+
+                        const currentChord = chords[chordIndex];
+                        currentChord.forEach(freq => {
+                            const osc = audioContextRef.current.createOscillator();
+                            const gainNode = audioContextRef.current.createGain();
+
+                            osc.type = 'sine';
+                            osc.frequency.value = freq;
+                            gainNode.gain.value = isMuted ? 0 : 0.04;
+
+                            osc.connect(gainNode);
+                            gainNode.connect(audioContextRef.current.destination);
+
+                            osc.start();
+                            oscillatorsRef.current.push(osc);
+                        });
+
+                        chordIndex = (chordIndex + 1) % chords.length;
+                        setTimeout(playChord, 2000);
+                    };
+
+                    playChord();
+                } catch (e) {
+                    console.log('Audio not supported:', e);
+                }
+            };
+
+            const handleStartGame = () => {
+                if (!playerName.trim()) {
+                    alert('이름을 입력해주세요!');
+                    return;
+                }
+                startBackgroundMusic();
+                setGameStarted(true);
+            };
+
+            const playClickSound = () => {
+                if (isMuted) return;
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    oscillator.frequency.value = 600;
+                    oscillator.type = 'sine';
+                    gainNode.gain.value = 0.1;
+                    oscillator.start();
+                    setTimeout(() => oscillator.stop(), 100);
+                } catch (e) {}
+            };
+
+            const scenes = {
+                intro: {
+                    title: "주일 아침 7시",
+                    description: "알람이 울립니다. 어젯밤 새벽 2시까지 넷플릭스를 봤습니다. 몸은 천근만근... 하지만 오늘은 주일입니다. 예배는 10시에 시작됩니다.",
+                    icon: "Sun",
+                    gradient: "from-yellow-300 via-orange-400 to-red-400",
+                    choices: [
+                        { text: "알람을 끄고 '5분만 더...'라고 생각하며 다시 눈을 감는다", result: "snooze_trap", spiritual: -10 },
+                        { text: "힘들지만 일어나서 씻고 교회 갈 준비를 한다", result: "morning_wake", spiritual: 10 }
+                    ]
+                },
+                snooze_trap: {
+                    title: "30분 후",
+                    description: "알람이 다시 울립니다. 7시 30분... 이제 좀 늦었네요. 핸드폰을 보니 친구들 단톡방이 불이 났습니다. '오늘 날씨 미쳤다! 한강 갈 사람?' 사진을 보니 정말 날씨가 좋아 보입니다.",
+                    icon: "MessageCircle",
+                    gradient: "from-green-300 via-teal-400 to-cyan-500",
+                    verse: { text: "너희가 함께 모이기를 폐하는 어떤 사람들의 습관과 같이 하지 말고 오직 권하여 그 날이 가까움을 볼수록 더욱 그리하자", reference: "히브리서 10:25" },
+                    lesson: "작은 유혹이 큰 결과를 만듭니다.",
+                    choices: [
+                        { text: "'교회는 다음주에 가고 오늘은 친구들이랑...' 단톡에 '나도 갈게'라고 답한다", result: "friends_choice", spiritual: -25 },
+                        { text: "'아직 안 늦었어!' 서둘러 일어나 준비한다", result: "church_arrival", spiritual: 5 }
+                    ]
+                },
+                morning_wake: {
+                    title: "아침 기도",
+                    description: "일어나서 무릎을 꿇고 짧게 기도합니다. '주님, 오늘도...' 그런데 핸드폰에서 알림이 계속 울립니다.",
+                    icon: "Book",
+                    gradient: "from-blue-300 via-indigo-400 to-purple-500",
+                    verse: { text: "여호와를 기다리는 자는 새 힘을 얻으리니", reference: "이사야 40:31" },
+                    lesson: "아침의 작은 선택이 하루를 결정합니다.",
+                    choices: [
+                        { text: "핸드폰을 확인한다. '급한 연락일 수도 있잖아'", result: "friends_choice", spiritual: -8 },
+                        { text: "핸드폰을 멀리하고 기도와 말씀 묵상을 계속한다", result: "church_arrival", spiritual: 15 }
+                    ]
+                },
+                friends_choice: {
+                    title: "한강으로",
+                    description: "친구들과 만나 한강에 갑니다. 정말 즐겁습니다. 그런데 오후가 되자... 공허함이 밀려옵니다.",
+                    icon: "Coffee",
+                    gradient: "from-sky-300 via-blue-400 to-indigo-500",
+                    verse: { text: "내가 해 아래에서 한 모든 일을 본즉 다 헛되어", reference: "전도서 2:11" },
+                    lesson: "세상의 즐거움은 순간적입니다.",
+                    choices: [
+                        { text: "'다음주엔 꼭 가야지' 하며 계속 논다", result: "bad_ending", spiritual: -30 },
+                        { text: "회개하며 기도한다", result: "neutral_ending", spiritual: -10 }
+                    ]
+                },
+                church_arrival: {
+                    title: "교회 도착",
+                    description: "교회에 도착했습니다. 예배가 시작됩니다. 찬양 시간... 그런데 옆 사람의 핸드폰에서 진동이 계속 옵니다.",
+                    icon: "Church",
+                    gradient: "from-blue-400 via-indigo-500 to-purple-600",
+                    verse: { text: "너희 몸을 하나님이 기뻐하시는 거룩한 산 제물로 드리라", reference: "로마서 12:1" },
+                    lesson: "예배의 자리에 왔지만, 마음을 지키는 것이 더 중요합니다.",
+                    choices: [
+                        { text: "'급한 일일 수도...' 살짝 핸드폰을 확인한다", result: "neutral_ending", spiritual: -15 },
+                        { text: "핸드폰을 가방 깊숙이 넣고 예배에만 집중한다", result: "good_ending", spiritual: 20 }
+                    ]
+                },
+                good_ending: {
+                    title: "승리하는 삶",
+                    description: "예배를 마치고 돌아오는 길, 마음에 기쁨과 평안이 가득합니다. 주일을 지킨 것이 아니라, 주일이 당신을 지켰습니다.",
+                    icon: "Trophy",
+                    gradient: "from-yellow-300 via-amber-400 to-orange-500",
+                    verse: { text: "여호와로 말미암아 기쁨을 누리라", reference: "시편 37:4" },
+                    lesson: "예배는 신자가 하나님을 만나는 은혜의 자리입니다.",
+                    isEnding: true,
+                    endingType: "good"
+                },
+                neutral_ending: {
+                    title: "또 다른 기회",
+                    description: "한 주를 아쉽게 보냈습니다. 하지만 하나님은 은혜로우셔서 다시 기회를 주십니다.",
+                    icon: "Sun",
+                    gradient: "from-orange-300 via-yellow-400 to-amber-500",
+                    verse: { text: "여호와의 인자하심은 무궁하시며", reference: "예레미야애가 3:22-23" },
+                    lesson: "시간은 돌아오지 않습니다.",
+                    isEnding: true,
+                    endingType: "neutral"
+                },
+                bad_ending: {
+                    title: "영적 침체의 늪",
+                    description: "어느새 예배는 선택사항이 되었습니다. 영적으로 메말라가고 있습니다.",
+                    icon: "Moon",
+                    gradient: "from-red-600 via-rose-700 to-pink-800",
+                    verse: { text: "우리가 진리를 아는 지식을 받은 후 짐짓 죄를 범한즉", reference: "히브리서 10:26" },
+                    lesson: "회개하고 돌아오십시오. 아직 늦지 않았습니다.",
+                    isEnding: true,
+                    endingType: "bad"
+                }
+            };
+
+            const handleChoice = (choice) => {
+                playClickSound();
+                const newHealth = Math.max(0, Math.min(100, spiritualHealth + choice.spiritual));
+                setSpiritualHealth(newHealth);
+                
+                setTimeout(() => {
+                    setCurrentScene(choice.result);
+                    const nextScene = scenes[choice.result];
+                    if (nextScene && nextScene.isEnding) {
+                        setShowHealth(true);
+                        saveToLeaderboard(newHealth);
+                    }
+                    window.scrollTo(0, 0);
+                }, 300);
+            };
+
+            const restartGame = () => {
+                setCurrentScene('intro');
+                setSpiritualHealth(50);
+                setShowHealth(false);
+                setShowLeaderboard(false);
+            };
+
+            const scene = scenes[currentScene];
+
+            const getEndingMessage = () => {
+                if (spiritualHealth >= 80) return { text: "탁월한 신앙", color: "text-green-600" };
+                if (spiritualHealth >= 60) return { text: "건강한 신앙", color: "text-blue-600" };
+                if (spiritualHealth >= 40) return { text: "보통의 신앙", color: "text-yellow-600" };
+                if (spiritualHealth >= 20) return { text: "연약한 신앙", color: "text-orange-600" };
+                return { text: "위험한 상태", color: "text-red-600" };
+            };
+
+            if (!gameStarted) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-md w-full">
+                            <Icon name="Church" className="w-24 h-24 mx-auto mb-6 text-purple-600" />
+                            <h1 className="text-4xl font-bold text-gray-800 mb-4 text-center">주일 성수</h1>
+                            <h2 className="text-2xl font-semibold text-purple-600 mb-8 text-center">영적 전쟁</h2>
+                            
+                            <div className="mb-6">
+                                <label className="block text-gray-700 font-medium mb-2">이름을 입력하세요</label>
+                                <input
+                                    type="text"
+                                    value={playerName}
+                                    onChange={(e) => setPlayerName(e.target.value)}
+                                    placeholder="예: 김성도"
+                                    maxLength={10}
+                                    className="w-full px-4 py-3 border-2 border-purple-300 rounded-xl focus:border-purple-600 focus:outline-none text-lg"
+                                />
+                            </div>
+                            
+                            <button
+                                onClick={handleStartGame}
+                                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-bold text-lg hover:shadow-lg mb-4"
+                            >
+                                게임 시작
+                            </button>
+                            
+                            <button
+                                onClick={() => setShowLeaderboard(!showLeaderboard)}
+                                className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 text-white py-3 rounded-xl font-bold"
+                            >
+                                명예의 전당
+                            </button>
+                            
+                            {showLeaderboard && leaderboard.length > 0 && (
+                                <div className="mt-6 bg-gray-50 rounded-2xl p-4">
+                                    <h3 className="font-bold text-gray-800 mb-3 text-center">🏆 명예의 전당 TOP 10</h3>
+                                    <div className="space-y-2">
+                                        {leaderboard.map((entry, idx) => (
+                                            <div key={idx} className={`flex justify-between items-center p-2 rounded-lg ${
+                                                idx === 0 ? 'bg-yellow-100' :
+                                                idx === 1 ? 'bg-gray-200' :
+                                                idx === 2 ? 'bg-orange-100' : 'bg-white'
+                                            }`}>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-purple-600 w-6">{idx + 1}위</span>
+                                                    <span className="font-medium">{entry.name}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="font-bold text-purple-600">{entry.score}점</span>
+                                                    <span className="text-xs text-gray-500 block">{entry.date}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <p className="text-gray-500 text-sm mt-6 text-center">
+                                🎵 배경음악이 함께 재생됩니다
+                            </p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4">
+                    <div className="max-w-3xl mx-auto">
+                        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 mb-4 text-white">
+                            <div className="flex justify-between items-center">
+                                <span className="font-bold">{playerName}님의 주일</span>
+                                <button onClick={() => setIsMuted(!isMuted)} className="p-2 hover:bg-white/20 rounded-lg">
+                                    <Icon name={isMuted ? "VolumeX" : "Volume2"} className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+                            <div className={`h-64 bg-gradient-to-br ${scene.gradient} flex items-center justify-center relative`}>
+                                <div className="absolute inset-0 bg-black/10"></div>
+                                <Icon name={scene.icon} className="w-40 h-40 text-white/90 relative z-10" strokeWidth={1.5} />
+                            </div>
+
+                            <div className="p-8">
+                                <h2 className="text-3xl font-bold text-gray-800 mb-4 text-center">{scene.title}</h2>
+                                
+                                <div className="bg-gray-50 rounded-2xl p-6 mb-6">
+                                    <p className="text-gray-700 leading-relaxed text-lg">{scene.description}</p>
+                                </div>
+
+                                {scene.verse && (
+                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-6 border-l-4 border-indigo-600">
+                                        <p className="text-gray-800 italic mb-2">"{scene.verse.text}"</p>
+                                        <p className="text-indigo-600 font-bold text-sm mb-3">- {scene.verse.reference}</p>
+                                        {scene.lesson && (
+                                            <div className="pt-3 border-t border-indigo-200">
+                                                <p className="text-gray-700 text-sm">💡 {scene.lesson}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {scene.isEnding ? (
+                                    <div className="space-y-4">
+                                        <div className={`rounded-2xl p-6 text-center ${
+                                            scene.endingType === 'good' ? 'bg-green-50 border-2 border-green-300' :
+                                            scene.endingType === 'bad' ? 'bg-red-50 border-2 border-red-300' :
+                                            'bg-yellow-50 border-2 border-yellow-300'
+                                        }`}>
+                                            <Icon name="Trophy" className={`w-16 h-16 mx-auto mb-4 ${
+                                                scene.endingType === 'good' ? 'text-green-600' :
+                                                scene.endingType === 'bad' ? 'text-red-600' : 'text-yellow-600'
+                                            }`} />
+                                            <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                                                {scene.endingType === 'good' ? '✝️ 좋은 엔딩' :
+                                                 scene.endingType === 'bad' ? '⚠️ 나쁜 엔딩' : '⚖️ 보통 엔딩'}
+                                            </h3>
+                                            
+                                            {showHealth && (
+                                                <div className="mt-4 pt-4 border-t">
+                                                    <p className="text-gray-600 mb-2">최종 영적 상태</p>
+                                                    <div className="bg-gray-200 rounded-full h-6 overflow-hidden mb-2">
+                                                        <div 
+                                                            className={`h-full ${
+                                                                spiritualHealth >= 70 ? 'bg-green-500' :
+                                                                spiritualHealth >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                                                            }`}
+                                                            style={{ width: `${spiritualHealth}%` }}
+                                                        />
+                                                    </div>
+                                                    <p className={`text-2xl font-bold ${getEndingMessage().color}`}>
+                                                        {spiritualHealth}점 - {getEndingMessage().text}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                        
+                                        <button onClick={restartGame} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-bold text-lg">
+                                            다시 시작하기
+                                        </button>
+                                        
+                                        <button
+                                            onClick={() => setShowLeaderboard(!showLeaderboard)}
+                                            className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 text-white py-3 rounded-xl font-bold"
+                                        >
+                                            {showLeaderboard ? '명예의 전당 닫기' : '명예의 전당 보기'}
+                                        </button>
+                                        
+                                        {showLeaderboard && leaderboard.length > 0 && (
+                                            <div className="bg-gray-50 rounded-2xl p-4">
+                                                <h3 className="font-bold text-gray-800 mb-3 text-center">🏆 TOP 10</h3>
+                                                <div className="space-y-2">
+                                                    {leaderboard.map((entry, idx) => (
+                                                        <div key={idx} className="flex justify-between p-2 rounded-lg bg-white">
+                                                            <span>{idx + 1}. {entry.name}</span>
+                                                            <span className="font-bold">{entry.score}점</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {scene.choices.map((choice, idx) => (
+                                            <button 
+                                                key={idx} 
+                                                onClick={() => handleChoice(choice)} 
+                                                className="w-full bg-white hover:bg-gray-50 border-2 border-gray-300 rounded-xl p-5 text-left"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold">
+                                                        {idx + 1}
+                                                    </div>
+                                                    <p className="text-gray-800 font-medium flex-1">{choice.text}</p>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="mt-4 bg-white/10 backdrop-blur-md rounded-2xl p-4 text-white text-center text-sm">
+                            <p>"하나님을 가까이함이 내게 복이라" - 시편 73:28</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<SundayWorshipGame />, document.getElementById('root'));
+    </script>
+</body>
+</html>
